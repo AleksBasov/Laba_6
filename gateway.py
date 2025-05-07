@@ -9,7 +9,7 @@ import logging
 app = FastAPI()
 
 
-RABBITMQ_URL = "admin:admin@localhost:15672"
+RABBITMQ_URL = "amqp://admin:admin@localhost:5672"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
