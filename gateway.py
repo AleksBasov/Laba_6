@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
 from tenacity import retry, wait_fixed, stop_after_attempt
 import logging
+import gateway
+
 
 
 app = FastAPI()
@@ -17,7 +19,10 @@ logger = logging.getLogger(__name__)
 
 class MessageRequest(BaseModel):
     message: str
-
+@retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
+async def connect_to_rabbitmq():
+    logger.info("Attempting to connect to RabbitMQ...")
+    return await aio_pika.connect_robust(RABBITMQ_URL)
 
 @app.on_event("startup")
 async def startup():
@@ -86,10 +91,7 @@ async def send_message(request: MessageRequest):
 
     
     # Функция для подключения к RabbitMQ с повторными попытками
-@retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
-async def connect_to_rabbitmq():
-    logger.info("Attempting to connect to RabbitMQ...")
-    return await aio_pika.connect_robust(RABBITMQ_URL)
+
 
 
 
