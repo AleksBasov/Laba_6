@@ -47,7 +47,7 @@ async def startup():
     try:
         # Попытка подключиться к RabbitMQ
         logger.info("Attempting to connect to RabbitMQ...")
-        app.state.connection = await aio_pika.connect_robust(RABBITMQ_URL)
+        app.state.connection = await connect_to_rabbitmq()
         app.state.channel = await app.state.connection.channel()
         app.state.exchange = await app.state.channel.declare_exchange(
             "messages", aio_pika.ExchangeType.DIRECT
@@ -83,13 +83,15 @@ async def send_message(request: MessageRequest):
         logger.error(f"Failed to publish message: {e}")
         raise HTTPException(status_code=500, detail="Failed to send message")
     
-    
+
     
     # Функция для подключения к RabbitMQ с повторными попытками
 @retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
 async def connect_to_rabbitmq():
     logger.info("Attempting to connect to RabbitMQ...")
     return await aio_pika.connect_robust(RABBITMQ_URL)
+
+
 
 
 
