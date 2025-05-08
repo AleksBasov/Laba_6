@@ -5,6 +5,8 @@ from fastapi import FastAPI, HTTPException
 from tenacity import retry, wait_fixed, stop_after_attempt
 import logging
 import gateway
+import uuid
+import asyncio
 
 
 
@@ -55,14 +57,25 @@ async def startup():
         app.state.connection = await connect_to_rabbitmq()
         app.state.channel = await app.state.connection.channel()
         app.state.exchange = await app.state.channel.declare_exchange(
-            "messages", aio_pika.ExchangeType.DIRECT
-        )
-        logger.info("Successfully connected to RabbitMQ and declared exchange 'messages'")
-    except Exception as e:
-        # Логирование ошибки и завершение приложения
-        logger.error(f"Failed to connect to RabbitMQ: {e}")
-        raise RuntimeError("Application failed to start due to RabbitMQ connection error")
-    
+        "messages", aio_pika.ExchangeType.DIRECT)
+        app.state.callback_queue = await app.state.channel.declare_queue(exclusive=True)
+
+    async def on_response(message: aio_pika.IncomingMessage):
+      correlation_id = message.correlation_id
+      if correlation_id in app.state.futures:
+        app.state.futures[correlation_id].set_result(message.body)
+      
+    await app.state.callback_queue.consume(on_response)
+
+    app.state.futures = {}
+        
+# Попытка подключения к RabbitMQ и объявление exchange
+    logger.info("Successfully connected to RabbitMQ and declared exchange 'messages'")
+except Exception as e:
+    # Логирование ошибки
+    logger.error(f"Failed to connect to RabbitMQ: {e}")
+    # Завершение приложения с выбросом исключения
+    raise RuntimeError("Application failed to start due to RabbitMQ connection error")
 
     # Событие остановки приложения
 @app.on_event("shutdown")
