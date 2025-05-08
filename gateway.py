@@ -7,6 +7,7 @@ import logging
 import gateway
 import uuid
 import asyncio
+import json
 
 
 
@@ -91,27 +92,37 @@ async def shutdown():
 async def send_message(request: MessageRequest):
     message = request.message
     correlation_id = str(uuid.uuid4())
+    trace_id = str(uuid.uuid4())  # Создаём trace_id для запроса
+
+    payload = {
+        "trace_id": trace_id,
+        "message": message
+    }
+
     future = asyncio.get_event_loop().create_future()
     app.state.futures[correlation_id] = future
     logger.info(f"Received message: {message}")
 
-
     try:
         await app.state.exchange.publish(
             aio_pika.Message(
-                body=message.encode(),
+                body=json.dumps(payload).encode(),
                 reply_to=app.state.callback_queue.name,
                 correlation_id=correlation_id
             ),
             routing_key="service_queue"
         )
-    response = await future
-    return {"response": response.decode()}
+        response = await future
+        decoded_response = json.loads(response)
+
+        # Логируем trace_id вместе с ответом
+        logger.info(f"[Gateway][Trace ID: {trace_id}] Response: {decoded_response}")
+
+        return decoded_response
 
     except Exception as e:
         logger.error(f"Failed to publish message: {e}")
         raise HTTPException(status_code=500, detail="Failed to send message")
-    
 
     
 
