@@ -116,13 +116,15 @@ async def send_message(request: MessageRequest):
         decoded_response = json.loads(response)
 
         # Логируем trace_id вместе с ответом
-        logger.info(f"[Gateway][Trace ID: {trace_id}] Response: {decoded_response}")
+    print(f"[Gateway][Trace ID: {trace_id}] Response: {decoded_response}")
+    logger.info(f"[Gateway][Trace ID: {trace_id}] Response: {decoded_response}")
 
-        return decoded_response
+
+    return decoded_response
 
     except Exception as e:
-        logger.error(f"Failed to publish message: {e}")
-        raise HTTPException(status_code=500, detail="Failed to send message")
+logger.error(f"Failed to publish message: {e}")
+raise HTTPException(status_code=500, detail="Failed to send message")
 
     
 
